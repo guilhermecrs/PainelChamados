@@ -41,7 +41,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}
 th{color:var(--mu);font-weight:600}
 td.d{white-space:normal;min-width:240px;color:var(--mu)}
-.b{padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;color:#14283b}
+.b{padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;color:#ffff}
 </style>
 </head>
 <body>
@@ -59,7 +59,11 @@ td.d{white-space:normal;min-width:240px;color:var(--mu)}
 </section>
 <section class="list">
  <h2>Lista de solicitações</h2>
- <div class="tools"><input id="q" placeholder="Buscar solicitação"><select id="fs"></select></div>
+ <div class="tools">
+    <input id="q" placeholder="Buscar solicitação">
+    <select id="ft"></select>
+    <select id="fs"></select>
+ </div>
  <div class="tw"><table id="t"></table></div>
 </section>
 </main>
@@ -182,22 +186,29 @@ function render(){
   datasets:sts.map(([s],i)=>({label:s,backgroundColor:col(s,i),data:ms.map(k=>R.filter(r=>r.s==s&&r.d&&r.d.getFullYear()*12+r.d.getMonth()==k).length)}))},
   options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});
 
+ // Filtro de Situações
  const valAtual=$('#fs').value;
  const listaPadrao=['Em andamento','Entregue','Cancelado','Suspenso'];
  const todasSituacoes=[...new Set([...listaPadrao,...sts.map(([s])=>s)])];
  $('#fs').innerHTML='<option value="">Todas as situações</option>'+todasSituacoes.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
  $('#fs').value=valAtual;
 
+ // Filtro de Tipos (Novo)
+ const valAtualT=$('#ft').value;
+ const todosTipos=[...new Set(R.map(r=>r.t))].filter(Boolean).sort();
+ $('#ft').innerHTML='<option value="">Todos os tipos</option>'+todosTipos.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+ $('#ft').value=valAtualT;
+
  list()}
 
 function list(){
- const q=N($('#q').value),f=$('#fs').value,hx=R.some(r=>r.x);
- const a=R.filter(r=>(!f||r.s==f)&&(!q||N(Object.values(r).join(' ')).includes(q)))
+ const q=N($('#q').value),f=$('#fs').value,ft=$('#ft').value,hx=R.some(r=>r.x);
+ const a=R.filter(r=>(!f||r.s==f)&&(!ft||r.t==ft)&&(!q||N(Object.values(r).join(' ')).includes(q)))
   .sort((x,y)=>(y.d||0)-(x.d||0)||y.n.localeCompare(x.n)).slice(0,300);
  $('#t').innerHTML='<tr><th>Nº<th>Data<th>Tipo<th>Módulo<th>Prioridade<th>Situação'+(hx?'<th>Descrição':'')+'</tr>'+
   a.map(r=>`<tr><td>${esc(r.n)}<td>${r.d?r.d.toLocaleDateString('pt-BR'):''}<td>${esc(r.t)}<td>${esc(r.m)}<td>${esc(r.p)}<td><span class="b" style="background:${col(r.s,0)}">${esc(r.s)}</span>${hx?`<td class="d">${esc(r.x.slice(0,160))}`:''}</tr>`).join('');}
 
-$('#q').oninput=list;$('#fs').onchange=list;
+$('#q').oninput=list;$('#fs').onchange=list;$('#ft').onchange=list;
 matchMedia('(prefers-color-scheme:dark)').onchange=()=>R.length&&render();
 loadData();
 </script>
