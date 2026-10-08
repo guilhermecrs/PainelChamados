@@ -137,18 +137,26 @@
       .k {
         border: 1.5px solid var(--bd);
         border-radius: 12px;
-        padding: 12px 14px;
+        padding: 14px;
+        text-align: center; /* Centraliza o texto horizontalmente */
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* Centraliza o conteúdo verticalmente dentro do card */
+        align-items: center; /* Centraliza os elementos na horizontal */
       }
+
       .k b {
         display: block;
-        font-size: 22px;
+        font-size: 20px; /* Reduzido levemente de 22px para dar mais espaço aos textos */
         font-weight: 800;
         line-height: 1.25;
         overflow-wrap: anywhere;
       }
+
       .k span {
         color: var(--mu);
         font-size: 13px;
+        margin-top: 4px;
       }
       #vazio {
         display: none;
@@ -1011,12 +1019,7 @@
           [`${E} (${T ? Math.round((E / T) * 100) : 0}%)`, "Entregues"],
           [and, "Em andamento"],
           [alta, "Prioridade alta"],
-          [
-            ms.length ? (T / ms.length).toFixed(1).replace(".", ",") : "0",
-            "Média de chamados por mês",
-          ],
           [mod ? `${mod[0]} (${mod[1]})` : "—", "Módulo com mais chamados"],
-          [tp ? `${tp[0]} (${tp[1]})` : "—", "Tipo mais frequente"],
           [ult ? ult.toLocaleDateString("pt-BR") : "—", "Chamado mais recente"],
         ];
         $("#kpis").innerHTML = kp
