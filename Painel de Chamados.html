@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel de Chamados</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f2f7fa;--tx:#14283b;--mu:#5d7184;--bd:#d9e4ec;--ac:#2f6fb5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1b26;--tx:#e6eef5;--mu:#93a8ba;--bd:#25384a;--ac:#6aa7e6}}
+:root[data-theme="dark"]{--bg:#0f1b26;--tx:#e6eef5;--mu:#93a8ba;--bd:#25384a;--ac:#6aa7e6}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 Nunito,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 18px 48px}
+header{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;justify-content:space-between}
+h1{font-size:26px;font-weight:800;margin:0}
+.sub{color:var(--mu)}
+button{font:inherit;font-weight:600;border-radius:10px;padding:9px 16px;cursor:pointer;border:1.5px solid var(--ac);background:var(--ac);color:#fff}
+button.o{background:transparent;color:var(--ac)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+#msg{color:var(--mu);font-size:14px;margin:14px 0 0}
+#hero{margin:30px 0 36px}
+.big{font-size:clamp(26px,5vw,40px);font-weight:800;line-height:1.2;margin:0 0 16px}
+.big b{font-weight:800;color:#1f9d8b}
+.bar{display:flex;height:20px;border-radius:10px;overflow:hidden;background:var(--bd)}
+.bar i{display:block;height:100%}
+.lg{display:flex;gap:18px;flex-wrap:wrap;color:var(--mu);margin:12px 0 0}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:7px}
+.grid{display:grid;gap:34px 40px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.w{grid-column:1/-1}
+h2{font-size:17px;font-weight:800;margin:0 0 10px}
+.box{position:relative;height:270px}
+.list{margin-top:44px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+input,select{background:transparent;color:var(--tx);border:1.5px solid var(--bd);border-radius:10px;padding:8px 12px;font:inherit}
+select option{color:#ffff}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{color:var(--mu);font-weight:600}
+td.d{white-space:normal;min-width:240px;color:var(--mu)}
+.b{padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;color:#14283b}
+</style>
+</head>
+<body>
+<main>
+<header>
+ <div><h1>Painel de chamados</h1><div class="sub" id="sub"></div></div>
+</header>
+<p id="msg"></p>
+<section id="hero"></section>
+<section class="grid">
+ <div class="w"><h2>Solicitações abertas por mês</h2><div class="box"><canvas id="c2"></canvas></div></div>
+ <div><h2>Por tipo de atendimento</h2><div class="box"><canvas id="c3"></canvas></div></div>
+ <div><h2>Por módulo</h2><div class="box"><canvas id="c4"></canvas></div></div>
+ <div><h2>Por Situação </h2><div class="box"><canvas id="c5"></canvas></div></div>
+</section>
+<section class="list">
+ <h2>Lista de solicitações</h2>
+ <div class="tools"><input id="q" placeholder="Buscar solicitação"><select id="fs"></select></div>
+ <div class="tw"><table id="t"></table></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const N=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const msg=t=>{$('#msg').textContent=t};
+const PAL=['#2f6fb5','#1f9d8b','#f0b429','#8b6fd0','#e0698a','#4cb6d6','#8fbf4a','#e88a3c'];
+const SC={'Entregue':'#1f9d8b','Em andamento':'#f0b429','Cancelado':'#e0698a','Suspenso':'#8b6fd0','Alta':'#e0698a','Média':'#f0b429','Baixa':'#1f9d8b','Não definida':'#9fb2c2'};
+const col=(l,i)=>SC[l]||PAL[i%PAL.length];
+let R=[],CH={};
+const mk=(id,c)=>{CH[id]?.destroy();CH[id]=new Chart($('#'+id),c)};
+const cnt=k=>{const o={};R.forEach(r=>o[r[k]]=(o[r[k]]||0)+1);return Object.entries(o).sort((a,b)=>b[1]-a[1])};
+
+const SAMPLE=`1,210325,Ac,E,E,A
+2,210325,Ac,,E,A
+3,240325,Au,E,E,A
+4,250325,D,AS,E,
+5,250325,D,E,E,
+6,040425,I,,E,A
+7,090425,Ac,,E,A
+8,170425,D,AS,E,
+9,280425,C,Fi,E,A
+10,290425,Tr,E,E,A
+11,050525,F,AS,E,A
+12,050525,U,,E,A
+13,080525,D,Co,E,
+14,080525,D,DF,E,
+15,120525,D,AS,E,
+16,120525,D,AS,A,
+17,120525,D,AS,E,
+18,120525,D,AS,E,
+19,120525,D,AS,E,
+20,200525,D,DF,E,
+21,210525,F,,E,A
+22,270525,F,Co,E,
+23,280525,D,Co,E,
+24,280525,D,Co,E,
+25,280525,D,PC,E,
+26,030625,D,PC,E,A
+27,040625,C,AS,E,A
+28,040625,C,AS,E,A
+29,040625,D,Es,E,A
+30,060625,D,AS,E,
+31,160625,D,Fi,E,A
+32,160625,D,E,E,A
+33,300625,D,PC,E,M
+34,300625,D,PC,E,M
+35,040725,D,E,A,A
+36,100725,D,PC,E,A
+37,170725,D,Ct,E,A
+38,220725,D,PC,E,A
+39,080825,D,PC,E,A
+40,110825,D,Ct,E,A
+41,180825,D,PC,E,A
+43,020925,D,PC,E,A
+44,040925,D,AS,E,A
+45,040925,D,AS,E,A
+46,040925,D,AS,E,A
+47,180925,D,PC,E,A
+49,250925,D,AS,E,A
+50,250925,D,AS,E,A
+51,101025,D,AS,E,A
+52,161025,D,PC,E,A
+53,171025,D,AS,E,A
+55,031125,D,AS,E,
+56,041125,D,PC,E,A
+57,131125,D,AS,E,A
+58,131125,D,E,E,
+59,171125,D,AS,E,A
+61,191125,D,DF,E,A
+62,011225,D,AS,E,A
+63,111225,D,PC,E,A
+64,120126,D,AS,E,A
+65,120126,D,AS,E,A
+66,260226,D,AS,E,
+67,260226,D,AS,E,A
+68,110326,Au,,E,A
+70,130326,D,AS,A,A
+71,200326,D,AS,E,A
+73,170426,D,DF,E,
+74,290426,D,AS,E,A
+75,040526,D,AS,E,A
+76,180526,D,AS,E,A
+77,190526,D,AS,E,A
+79,290726,D,AS,A,A
+80,270826,D,AS,E,
+81,030926,D,E,E,A
+83,100926,D,E,E,A
+84,140926,D,E,E,A
+85,240926,D,E,E,A
+86,061026,F,AS,E,A
+87,061026,D,E,A,A`;
+
+const TT={Ac:'Acompanhamento',Au:'Auditoria',D:'Desenvolvimento',I:'Implantação',C:'Configuração / Parâmetros',Tr:'Treinamento remoto',F:'Falha no sistema',U:'Criar usuário'};
+const MM={E:'Estoque',AS:'Assistência Social',Fi:'Financeiro',Co:'Compras',DF:'Documentos Fiscais',PC:'Prestação de Contas',Es:'Escolar',Ct:'Contabilidade'};
+
+function loadData(){
+ R=SAMPLE.split('\n').map(l=>{const [n,d,t,m,s,p]=l.split(',');
+  return{n:n.padStart(6,'0'),d:new Date(2000+ +d.slice(4),d.slice(2,4)-1,+d.slice(0,2)),s:s=='E'?'Entregue':'Em andamento',t:TT[t],m:MM[m]||'Não informado',p:{A:'Alta',M:'Média'}[p]||'Não definida',x:''}});
+ $('#sub').textContent='AACC – Associação dos Amigos das Crianças com Câncer';
+ msg('Exibindo as 79 solicitações da AACC carregadas diretamente do relatório PDF.');
+ render()}
+
+function render(){
+ const cs=getComputedStyle(document.documentElement);
+ Chart.defaults.color=cs.getPropertyValue('--mu').trim();Chart.defaults.borderColor=cs.getPropertyValue('--bd').trim();
+ Chart.defaults.font.family='Nunito,system-ui,sans-serif';
+ const T=R.length,sts=cnt('s'),E=(sts.find(x=>x[0]=='Entregue')||[0,0])[1];
+ $('#hero').innerHTML=`<p class="big"><b>${E}</b> de ${T} solicitações já foram entregues</p>
+ <div class="bar">${sts.map(([s,n])=>`<i style="width:${n/T*100}\%;background:${col(s,0)}" title="${esc(s)}:${n}"></i>`).join('')}</div>
+ <p class="lg">${sts.map(([s,n])=>`<span><span class="dot" style="background:${col(s,0)}"></span>${esc(s)}:${n}</span>`).join('')}</p>`;
+ const dn=(id,a)=>mk(id,{type:'doughnut',data:{labels:a.map(x=>x[0]),datasets:[{data:a.map(x=>x[1]),backgroundColor:a.map((x,i)=>col(x[0],i)),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}});
+ const hb=(id,a)=>mk(id,{type:'bar',data:{labels:a.map(x=>x[0]),datasets:[{data:a.map(x=>x[1]),backgroundColor:PAL[0],borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{precision:0}}},plugins:{legend:{display:false}}}});
+ dn('c5',cnt('s'));hb('c3',cnt('t').slice(0,8));hb('c4',cnt('m').slice(0,8));
+ const ds=R.filter(r=>r.d).map(r=>r.d.getFullYear()*12+r.d.getMonth()),ms=[];
+ for(let k=Math.min(...ds);k<=Math.max(...ds);k++)ms.push(k);
+ mk('c2',{type:'bar',data:{labels:ms.map(k=>String(k%12+1).padStart(2,'0')+'/'+String(Math.floor(k/12)).slice(2)),
+  datasets:sts.map(([s],i)=>({label:s,backgroundColor:col(s,i),data:ms.map(k=>R.filter(r=>r.s==s&&r.d&&r.d.getFullYear()*12+r.d.getMonth()==k).length)}))},
+  options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});
+
+ const valAtual=$('#fs').value;
+ const listaPadrao=['Em andamento','Entregue','Cancelado','Suspenso'];
+ const todasSituacoes=[...new Set([...listaPadrao,...sts.map(([s])=>s)])];
+ $('#fs').innerHTML='<option value="">Todas as situações</option>'+todasSituacoes.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+ $('#fs').value=valAtual;
+
+ list()}
+
+function list(){
+ const q=N($('#q').value),f=$('#fs').value,hx=R.some(r=>r.x);
+ const a=R.filter(r=>(!f||r.s==f)&&(!q||N(Object.values(r).join(' ')).includes(q)))
+  .sort((x,y)=>(y.d||0)-(x.d||0)||y.n.localeCompare(x.n)).slice(0,300);
+ $('#t').innerHTML='<tr><th>Nº<th>Data<th>Tipo<th>Módulo<th>Prioridade<th>Situação'+(hx?'<th>Descrição':'')+'</tr>'+
+  a.map(r=>`<tr><td>${esc(r.n)}<td>${r.d?r.d.toLocaleDateString('pt-BR'):''}<td>${esc(r.t)}<td>${esc(r.m)}<td>${esc(r.p)}<td><span class="b" style="background:${col(r.s,0)}">${esc(r.s)}</span>${hx?`<td class="d">${esc(r.x.slice(0,160))}`:''}</tr>`).join('');}
+
+$('#q').oninput=list;$('#fs').onchange=list;
+matchMedia('(prefers-color-scheme:dark)').onchange=()=>R.length&&render();
+loadData();
+</script>
+</body>
+</html>
