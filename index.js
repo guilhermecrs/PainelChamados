@@ -213,7 +213,7 @@ function parseLines(L) {
       if (!cur) {
         cur = {
           id: idUnico,
-          empresa: emp,
+          empresa: emp || "Não informada",
           n,
           d: null,
           s: situacao(m[2]),
@@ -827,12 +827,13 @@ function list() {
 
   if ($("#t")) {
     $("#t").innerHTML =
-      "<tr><th>Nº<th>Data<th>Tipo<th>Módulo<th>Prioridade<th>Usuário Abertura<th>Usuário Atual<th>Situação</tr>" +
+      "<tr><th>Nº<th>Empresa<th>Data<th>Tipo<th>Módulo<th>Prioridade<th>Usuário Abertura<th>Usuário Atual<th>Situação</tr>" +
       a
         .map(
           (r) =>
             `<tr>
               <td>${esc(r.n)}</td>
+              <td>${esc(r.empresa || "Não informada")}</td>
               <td>${r.d ? r.d.toLocaleDateString("pt-BR") : ""}</td>
               <td>${esc(r.t)}</td>
               <td>${esc(r.m)}</td>
